@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <!-- 霓虹光效渐变 -->
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="50%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#7b2fff"/>
+    </linearGradient>
+    
+    <!-- 赛博朋克渐变 -->
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#ff00ff"/>
+    </linearGradient>
+    
+    <!-- 发光滤镜 -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 强发光滤镜 -->
+    <filter id="strongGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 扫描线图案 -->
+    <pattern id="scanlines" patternUnits="userSpaceOnUse" width="4" height="4">
+      <line x1="0" y1="0" x2="4" y2="0" stroke="#00f5ff" stroke-width="0.5" opacity="0.15"/>
+    </pattern>
+    
+    <!-- 电路图案 -->
+    <pattern id="circuitPattern" patternUnits="userSpaceOnUse" width="20" height="20">
+      <path d="M0 10 L8 10 L10 8 L20 8" stroke="#00f5ff" stroke-width="0.5" fill="none" opacity="0.2"/>
+      <path d="M10 0 L10 8 L12 10 L20 10" stroke="#00f5ff" stroke-width="0.5" fill="none" opacity="0.2"/>
+      <circle cx="10" cy="10" r="1.5" fill="#00f5ff" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <!-- 透明背景 -->
+  <!-- <rect width="400" height="400" fill="transparent"/> -->
+  
+  <!-- 背景装饰：电路纹理 -->
+  <rect x="0" y="0" width="400" height="400" fill="url(#circuitPattern)"/>
+  
+  <!-- 背景装饰：网格线 -->
+  <g stroke="#00f5ff" stroke-width="0.3" opacity="0.1">
+    <line x1="0" y1="100" x2="400" y2="100"/>
+    <line x1="0" y1="200" x2="400" y2="200"/>
+    <line x1="0" y1="300" x2="400" y2="300"/>
+    <line x1="100" y1="0" x2="100" y2="400"/>
+    <line x1="200" y1="0" x2="200" y2="400"/>
+    <line x1="300" y1="0" x2="300" y2="400"/>
+  </g>
+  
+  <!-- 主 Logo 区域 -->
+  <g transform="translate(200, 200)">
+    <!-- 外围装饰圆环 -->
+    <circle cx="0" cy="0" r="130" fill="none" stroke="url(#neonGrad)" stroke-width="1" opacity="0.2" stroke-dasharray="8 4"/>
+    <circle cx="0" cy="0" r="145" fill="none" stroke="#00f5ff" stroke-width="0.5" opacity="0.15"/>
+    
+    <!-- 左侧装饰线 -->
+    <line x1="-160" y1="-40" x2="-120" y2="-40" stroke="#00f5ff" stroke-width="1" opacity="0.5"/>
+    <line x1="-160" y1="-40" x2="-160" y2="0" stroke="#00f5ff" stroke-width="1" opacity="0.5"/>
+    <circle cx="-120" cy="-40" r="3" fill="#00f5ff" opacity="0.6"/>
+    
+    <!-- 右侧装饰线 -->
+    <line x1="120" y1="40" x2="160" y2="40" stroke="#ff00ff" stroke-width="1" opacity="0.5"/>
+    <line x1="160" y1="0" x2="160" y2="40" stroke="#ff00ff" stroke-width="1" opacity="0.5"/>
+    <circle cx="120" cy="40" r="3" fill="#ff00ff" opacity="0.6"/>
+    
+    <!-- C 字母 - 左侧 -->
+    <g filter="url(#strongGlow)">
+      <!-- C 的外轮廓 -->
+      <path d="M 40 -80 
+               L -40 -80 
+               Q -100 -80 -100 0 
+               Q -100 80 -40 80 
+               L 40 80" 
+            fill="none" 
+            stroke="url(#neonGrad)" 
+            stroke-width="12" 
+            stroke-linecap="round"/>
+    </g>
+    
+    <!-- C 的内部电路纹理 -->
+    <path d="M 30 -60 
+             L -30 -60 
+             Q -80 -60 -80 0 
+             Q -80 60 -30 60 
+             L 30 60" 
+          fill="none" 
+          stroke="#0a0a1a" 
+          stroke-width="4" 
+          stroke-linecap="round"/>
+    
+    <!-- C 的高光线 -->
+    <path d="M 30 -70 
+             L -20 -70 
+             Q -70 -70 -70 0 
+             Q -70 40 -40 55" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="2" 
+          stroke-linecap="round"
+          opacity="0.4"/>
+    
+    <!-- C 的电路节点 -->
+    <circle cx="30" cy="-60" r="4" fill="#00f5ff" filter="url(#glow)"/>
+    <circle cx="-70" cy="0" r="4" fill="#00f5ff" filter="url(#glow)"/>
+    <circle cx="20" cy="60" r="3" fill="#00f5ff" opacity="0.7"/>
+    
+    <!-- C 的电路连线 -->
+    <line x1="34" y1="-60" x2="50" y2="-60" stroke="#00f5ff" stroke-width="1" opacity="0.6"/>
+    <line x1="50" y1="-60" x2="50" y2="-45" stroke="#00f5ff" stroke-width="1" opacity="0.6"/>
+    <circle cx="50" cy="-45" r="2" fill="#00f5ff" opacity="0.5"/>
+    
+    <!-- C 右侧的小装饰 -->
+    <line x1="45" y1="-75" x2="60" y2="-75" stroke="#00f5ff" stroke-width="1" opacity="0.4"/>
+    <line x1="45" y1="70" x2="55" y2="70" stroke="#00f5ff" stroke-width="1" opacity="0.4"/>
+    
+    <!-- 第二个 C 字母 - 右侧（稍微偏移） -->
+    <g transform="translate(85, 0)" filter="url(#strongGlow)">
+      <!-- C 的外轮廓 -->
+      <path d="M 40 -80 
+               L -40 -80 
+               Q -100 -80 -100 0 
+               Q -100 80 -40 80 
+               L 40 80" 
+            fill="none" 
+            stroke="url(#cyberGrad)" 
+            stroke-width="12" 
+            stroke-linecap="round"/>
+    </g>
+    
+    <!-- 第二个 C 的内部 -->
+    <path d="M 30 -60 
+             L -30 -60 
+             Q -80 -60 -80 0 
+             Q -80 60 -30 60 
+             L 30 60" 
+          fill="none" 
+          stroke="#0a0a1a" 
+          stroke-width="4" 
+          stroke-linecap="round"/>
+    
+    <!-- 第二个 C 的高光线 -->
+    <path d="M 30 -70 
+             L -20 -70 
+             Q -70 -70 -70 0 
+             Q -70 40 -40 55" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="2" 
+          stroke-linecap="round"
+          opacity="0.3"/>
+    
+    <!-- 第二个 C 的电路节点 -->
+    <circle cx="30" cy="-60" r="4" fill="#ff00ff" filter="url(#glow)"/>
+    <circle cx="-70" cy="0" r="4" fill="#ff00ff" filter="url(#glow)"/>
+    <circle cx="20" cy="60" r="3" fill="#ff00ff" opacity="0.7"/>
+    
+    <!-- 连接两个 C 的电路线 -->
+    <path d="M 50 -30 L 60 -30 L 60 30 L 50 30" stroke="#00f5ff" stroke-width="1" fill="none" opacity="0.4" stroke-dasharray="3 2"/>
+    <circle cx="60" cy="0" r="3" fill="#00f5ff" opacity="0.5"/>
+  </g>
+  
+  <!-- 扫描线叠加效果 -->
+  <rect x="0" y="0" width="400" height="400" fill="url(#scanlines)" opacity="0.5"/>
+  
+  <!-- 角落装饰 -->
+  <g stroke="#00f5ff" stroke-width="1" fill="none" opacity="0.4">
+    <path d="M 20 20 L 20 50 M 20 20 L 50 20"/>
+    <path d="M 380 20 L 380 50 M 380 20 L 350 20"/>
+  </g>
+</svg>
