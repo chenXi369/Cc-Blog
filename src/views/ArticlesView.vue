@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Eye, Heart, MessageCircle, Calendar } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { Eye, Heart, MessageCircle, Calendar, Pencil, Trash2 } from 'lucide-vue-next'
+import { api } from '@/api/request'
 
 interface Article {
   id: number
@@ -15,52 +16,60 @@ interface Article {
   readTime: string
 }
 
-const articles = ref<Article[]>([
-  {
-    id: 1,
-    title: 'Vue3 性能优化实践指南',
-    summary: '从实际项目出发，深入探讨 Vue3 应用的性能优化策略，包括编译优化、渲染优化、状态管理优化等方面。',
-    tags: ['Vue.js', '性能优化', '前端'],
-    views: 2340,
-    likes: 156,
-    comments: 32,
-    date: '2024-01-15',
-    readTime: '12分钟',
-  },
-  {
-    id: 2,
-    title: '基于 Canvas 的编辑器架构设计',
-    summary: '探讨如何构建高性能的 Canvas 编辑器，包括渲染管线、事件系统、状态管理等核心模块的设计思路。',
-    tags: ['Canvas', '编辑器', '架构'],
-    views: 1890,
-    likes: 128,
-    comments: 24,
-    date: '2024-01-10',
-    readTime: '15分钟',
-  },
-  {
-    id: 3,
-    title: 'TypeScript 高级类型编程',
-    summary: '深入 TypeScript 类型系统，掌握条件类型、映射类型、模板字面量类型等高级特性的使用技巧。',
-    tags: ['TypeScript', '类型系统'],
-    views: 3200,
-    likes: 210,
-    comments: 45,
-    date: '2024-01-05',
-    readTime: '18分钟',
-  },
-  {
-    id: 4,
-    title: 'AI 辅助编程工具对比评测',
-    summary: '对比 Cursor、GitHub Copilot、Codeium 等主流 AI 编程助手，分析各自的优势和适用场景。',
-    tags: ['AI', '工具', '效率'],
-    views: 4560,
-    likes: 312,
-    comments: 67,
-    date: '2023-12-28',
-    readTime: '10分钟',
-  },
-])
+interface ArticleEditForm {
+  title: string
+  summary: string
+  cover?: string
+  tags: string
+  views: number
+  likes: number
+  comments: number
+  date: string
+  readTime: string
+}
+
+const articles = ref<Article[]>([])
+const editingId = ref<number | null>(null)
+const editForm = ref<Partial<ArticleEditForm>>({})
+
+const fetchArticles = async () => {
+  const data = await api.get<any[]>('/articles')
+  articles.value = data.map((item) => ({
+    ...item,
+    tags: item.tags ? item.tags.split(',').filter(Boolean) : [],
+    readTime: item.read_time || '',
+  }))
+}
+
+onMounted(fetchArticles)
+
+const startEdit = (article: Article) => {
+  editingId.value = article.id
+  editForm.value = {
+    ...article,
+    tags: article.tags.join(','),
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+  editForm.value = {}
+}
+
+const saveEdit = async () => {
+  if (!editingId.value) return
+  await api.put('/articles/' + editingId.value, {
+    ...editForm.value,
+    tags: editForm.value.tags,
+  })
+  await fetchArticles()
+  editingId.value = null
+}
+
+const deleteArticle = async (id: number) => {
+  await api.delete('/articles/' + id)
+  await fetchArticles()
+}
 
 const formatNumber = (num: number): string => {
   if (num >= 1000) {
@@ -78,7 +87,36 @@ const formatNumber = (num: number): string => {
         :key="article.id"
         class="article-card"
       >
-        <div class="article-content">
+        <div class="article-actions">
+          <button
+            v-if="editingId !== article.id"
+            class="action-btn"
+            @click.stop="startEdit(article)"
+          >
+            <Pencil :size="16" />
+          </button>
+          <button
+            v-if="editingId !== article.id"
+            class="action-btn"
+            @click.stop="deleteArticle(article.id)"
+          >
+            <Trash2 :size="16" />
+          </button>
+        </div>
+
+        <div v-if="editingId === article.id" class="article-edit-form">
+          <input v-model="editForm.title" placeholder="标题" />
+          <textarea v-model="editForm.summary" placeholder="摘要" rows="3" />
+          <input v-model="editForm.tags" placeholder="标签（逗号分隔）" />
+          <input v-model="editForm.date" placeholder="日期" />
+          <input v-model="editForm.readTime" placeholder="阅读时间" />
+          <div class="edit-actions">
+            <button class="edit-btn save" @click="saveEdit">保存</button>
+            <button class="edit-btn cancel" @click="cancelEdit">取消</button>
+          </div>
+        </div>
+
+        <div v-else class="article-content">
           <div class="article-meta-top">
             <span v-for="tag in article.tags" :key="tag" class="article-tag">
               {{ tag }}
@@ -124,6 +162,7 @@ const formatNumber = (num: number): string => {
 }
 
 .article-card {
+  position: relative;
   background: #fff;
   border-radius: 12px;
   padding: 24px;
@@ -185,5 +224,105 @@ const formatNumber = (num: number): string => {
   margin-left: auto;
   font-size: 12px;
   color: #999;
+}
+
+.article-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.article-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.article-edit-form input,
+.article-edit-form textarea {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+}
+
+.article-edit-form input:focus,
+.article-edit-form textarea:focus {
+  border-color: #409eff;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.edit-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn.save {
+  background: #409eff;
+  color: #fff;
+}
+
+.edit-btn.save:hover {
+  background: #66b1ff;
+}
+
+.edit-btn.cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.edit-btn.cancel:hover {
+  background: #e0e0e0;
+}
+
+@media (max-width: 768px) {
+  .article-card {
+    padding: 16px;
+  }
+
+  .article-title {
+    font-size: 16px;
+  }
+
+  .article-meta-bottom {
+    gap: 12px;
+  }
+
+  .read-time {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 </style>

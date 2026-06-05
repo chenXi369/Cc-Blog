@@ -1,48 +1,67 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { Pencil, Trash2 } from 'lucide-vue-next'
+import { api } from '@/api/request'
 
 interface TechItem {
+  id: number
   name: string
   icon: string
-  category: string
   proficiency: number
   description: string
 }
 
-const techCategories = ref([
-  {
-    name: '前端框架',
-    items: [
-      { name: 'Vue.js', icon: 'V', proficiency: 95, description: '熟练掌握 Vue3 Composition API' },
-      { name: 'React', icon: 'R', proficiency: 90, description: 'Hooks、Next.js 生态' },
-      { name: 'TypeScript', icon: 'TS', proficiency: 92, description: '类型系统、泛型编程' },
-    ],
-  },
-  {
-    name: '构建工具',
-    items: [
-      { name: 'Vite', icon: 'V', proficiency: 88, description: '快速构建、HMR' },
-      { name: 'Webpack', icon: 'W', proficiency: 85, description: '配置优化、Loader 开发' },
-      { name: 'pnpm', icon: 'P', proficiency: 90, description: 'Monorepo 管理' },
-    ],
-  },
-  {
-    name: '图形 & 编辑器',
-    items: [
-      { name: 'Canvas', icon: 'C', proficiency: 88, description: '2D 绘图、动画' },
-      { name: 'WebGL', icon: 'W', proficiency: 75, description: 'Three.js、着色器' },
-      { name: 'Skia', icon: 'S', proficiency: 70, description: 'CanvasKit、图形渲染' },
-    ],
-  },
-  {
-    name: 'AI & 工具',
-    items: [
-      { name: 'OpenAI', icon: 'AI', proficiency: 82, description: 'API 集成、Prompt 工程' },
-      { name: 'LangChain', icon: 'L', proficiency: 75, description: 'AI 应用开发' },
-      { name: 'Cursor', icon: 'C', proficiency: 95, description: 'AI 辅助编程' },
-    ],
-  },
-])
+interface TechCategory {
+  id: number
+  name: string
+  items: TechItem[]
+}
+
+const techCategories = ref<TechCategory[]>([])
+const editingId = ref<number | null>(null)
+const editForm = ref({
+  name: '',
+  icon: '',
+  description: '',
+  proficiency: 0,
+})
+
+const fetchTechStack = async () => {
+  techCategories.value = await api.get<TechCategory[]>('/tech-stack')
+}
+
+const startEdit = (item: TechItem) => {
+  editingId.value = item.id
+  editForm.value = {
+    name: item.name,
+    icon: item.icon,
+    description: item.description,
+    proficiency: item.proficiency,
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
+const saveEdit = async () => {
+  if (editingId.value === null) return
+  await api.put('/tech-stack/items/' + editingId.value, editForm.value)
+  editingId.value = null
+  await fetchTechStack()
+}
+
+const deleteItem = async (id: number) => {
+  await api.delete('/tech-stack/items/' + id)
+  await fetchTechStack()
+}
+
+const deleteCategory = async (id: number) => {
+  await api.delete('/tech-stack/categories/' + id)
+  await fetchTechStack()
+}
+
+onMounted(fetchTechStack)
 </script>
 
 <template>
@@ -50,30 +69,55 @@ const techCategories = ref([
     <div class="tech-grid">
       <div
         v-for="category in techCategories"
-        :key="category.name"
+        :key="category.id"
         class="category-card"
       >
-        <h3 class="category-title">{{ category.name }}</h3>
+        <div class="category-title-wrap">
+          <h3 class="category-title">{{ category.name }}</h3>
+          <button class="icon-btn delete-category-btn" @click="deleteCategory(category.id)">
+            <Trash2 :size="14" />
+          </button>
+        </div>
         <div class="tech-list">
           <div
             v-for="tech in category.items"
-            :key="tech.name"
+            :key="tech.id"
             class="tech-item"
           >
-            <div class="tech-header">
-              <div class="tech-icon">{{ tech.icon }}</div>
-              <div class="tech-info">
-                <span class="tech-name">{{ tech.name }}</span>
-                <span class="tech-desc">{{ tech.description }}</span>
+            <div v-if="editingId === tech.id" class="edit-form">
+              <input v-model="editForm.name" placeholder="名称" />
+              <input v-model="editForm.icon" placeholder="图标" />
+              <input v-model="editForm.description" placeholder="描述" />
+              <input v-model.number="editForm.proficiency" type="number" min="0" max="100" placeholder="熟练度" />
+              <div class="edit-actions">
+                <button class="save-btn" @click="saveEdit">保存</button>
+                <button class="cancel-btn" @click="cancelEdit">取消</button>
               </div>
             </div>
-            <div class="proficiency-bar">
-              <div
-                class="proficiency-fill"
-                :style="{ width: tech.proficiency + '%' }"
-              ></div>
-            </div>
-            <span class="proficiency-text">{{ tech.proficiency }}%</span>
+            <template v-else>
+              <div class="item-actions">
+                <button class="icon-btn" @click="startEdit(tech)">
+                  <Pencil :size="14" />
+                </button>
+                <button class="icon-btn" @click="deleteItem(tech.id)">
+                  <Trash2 :size="14" />
+                </button>
+              </div>
+              <div class="tech-header">
+                <div class="tech-icon">{{ tech.icon }}</div>
+                <div class="tech-info">
+                  <span class="tech-name">{{ tech.name }}</span>
+                  <span class="tech-desc">{{ tech.description }}</span>
+                </div>
+              </div>
+              <div class="proficiency-bar">
+                <div
+                  class="proficiency-fill"
+                  :style="{ width: tech.proficiency + '%' }"
+                ></div>
+              </div>
+              <span class="proficiency-text">{{ tech.proficiency }}%</span>
+            </template>
           </div>
         </div>
       </div>
@@ -100,13 +144,20 @@ const techCategories = ref([
   border: 1px solid #e8e8e8;
 }
 
+.category-title-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
+  margin-bottom: 20px;
+}
+
 .category-title {
   font-size: 16px;
   font-weight: 600;
   color: #1a1a1a;
-  margin: 0 0 20px 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f5f5f5;
+  margin: 0;
 }
 
 .tech-list {
@@ -119,6 +170,28 @@ const techCategories = ref([
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative;
+}
+
+.item-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: #999;
+  line-height: 1;
+}
+
+.icon-btn:hover {
+  color: #1a1a1a;
 }
 
 .tech-header {
@@ -175,6 +248,48 @@ const techCategories = ref([
   font-size: 12px;
   color: #999;
   text-align: right;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-form input {
+  padding: 6px 10px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.edit-form input:focus {
+  border-color: #1a1a1a;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+}
+
+.save-btn {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #1a1a1a;
 }
 
 @media (max-width: 768px) {

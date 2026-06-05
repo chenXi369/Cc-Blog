@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Github, ExternalLink, Star, GitFork } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { Github, ExternalLink, Star, GitFork, Pencil, Trash2 } from 'lucide-vue-next'
+import { api } from '@/api/request'
 
 interface Project {
   id: number
@@ -14,49 +15,27 @@ interface Project {
   status: 'active' | 'archived' | 'completed'
 }
 
-const projects = ref<Project[]>([
-  {
-    id: 1,
-    name: 'Vue3 Blog',
-    description: '基于 Vue3 的个人博客系统，支持文章管理、项目展示等功能',
-    techStack: ['Vue3', 'TypeScript', 'Vite'],
-    stars: 128,
-    forks: 32,
-    url: 'https://github.com',
-    demoUrl: '#',
-    status: 'active',
-  },
-  {
-    id: 2,
-    name: 'Canvas Editor',
-    description: '基于 Canvas 的图形编辑器，支持多种图形绘制和编辑',
-    techStack: ['Canvas', 'TypeScript', 'Webpack'],
-    stars: 256,
-    forks: 48,
-    url: 'https://github.com',
-    status: 'active',
-  },
-  {
-    id: 3,
-    name: 'AI Chat Tool',
-    description: '集成 OpenAI API 的智能聊天工具，支持多种模型',
-    techStack: ['React', 'Node.js', 'OpenAI'],
-    stars: 89,
-    forks: 15,
-    url: 'https://github.com',
-    status: 'completed',
-  },
-  {
-    id: 4,
-    name: 'Component Library',
-    description: 'Vue3 组件库，包含常用 UI 组件',
-    techStack: ['Vue3', 'Vite', 'Sass'],
-    stars: 167,
-    forks: 28,
-    url: 'https://github.com',
-    status: 'active',
-  },
-])
+const projects = ref<Project[]>([])
+const editingId = ref<number | null>(null)
+const editForm = ref({
+  name: '',
+  description: '',
+  url: '',
+  demoUrl: '',
+  status: 'active' as 'active' | 'archived' | 'completed',
+  techStack: '',
+})
+
+const fetchProjects = async () => {
+  const data = await api.get<any[]>('/projects')
+  projects.value = data.map((item) => ({
+    ...item,
+    techStack: item.tech_stack ? item.tech_stack.split(',').filter(Boolean) : [],
+    demoUrl: item.demo_url,
+  }))
+}
+
+onMounted(fetchProjects)
 
 const getStatusColor = (status: string) => {
   const colors: Record<string, string> = {
@@ -75,6 +54,38 @@ const getStatusLabel = (status: string) => {
   }
   return labels[status] || status
 }
+
+const startEdit = (project: Project) => {
+  editingId.value = project.id
+  editForm.value = {
+    name: project.name,
+    description: project.description,
+    url: project.url,
+    demoUrl: project.demoUrl || '',
+    status: project.status,
+    techStack: project.techStack.join(','),
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
+const saveEdit = async () => {
+  if (editingId.value === null) return
+  await api.put('/projects/' + editingId.value, {
+    ...editForm.value,
+    tech_stack: editForm.value.techStack,
+  })
+  editingId.value = null
+  await fetchProjects()
+}
+
+const deleteProject = async (id: number) => {
+  if (!confirm('确定要删除这个项目吗？')) return
+  await api.delete('/projects/' + id)
+  await fetchProjects()
+}
 </script>
 
 <template>
@@ -89,40 +100,69 @@ const getStatusLabel = (status: string) => {
           <div class="project-icon">
             <Github :size="24" />
           </div>
-          <div class="project-status" :style="{ color: getStatusColor(project.status) }">
-            {{ getStatusLabel(project.status) }}
+          <div class="project-header-right">
+            <div class="project-status" :style="{ color: getStatusColor(project.status) }">
+              {{ getStatusLabel(project.status) }}
+            </div>
+            <button class="icon-btn" @click="startEdit(project)">
+              <Pencil :size="14" />
+            </button>
+            <button class="icon-btn delete-btn" @click="deleteProject(project.id)">
+              <Trash2 :size="14" />
+            </button>
           </div>
         </div>
 
-        <h3 class="project-name">{{ project.name }}</h3>
-        <p class="project-desc">{{ project.description }}</p>
+        <template v-if="editingId === project.id">
+          <div class="edit-form">
+            <input v-model="editForm.name" class="edit-input" placeholder="项目名称" />
+            <textarea v-model="editForm.description" class="edit-textarea" placeholder="描述" rows="3"></textarea>
+            <input v-model="editForm.url" class="edit-input" placeholder="仓库地址" />
+            <input v-model="editForm.demoUrl" class="edit-input" placeholder="演示地址" />
+            <select v-model="editForm.status" class="edit-select">
+              <option value="active">进行中</option>
+              <option value="archived">已归档</option>
+              <option value="completed">已完成</option>
+            </select>
+            <input v-model="editForm.techStack" class="edit-input" placeholder="技术栈，逗号分隔" />
+            <div class="edit-actions">
+              <button class="edit-btn save" @click="saveEdit">保存</button>
+              <button class="edit-btn cancel" @click="cancelEdit">取消</button>
+            </div>
+          </div>
+        </template>
 
-        <div class="project-tech">
-          <span v-for="tech in project.techStack" :key="tech" class="tech-tag">
-            {{ tech }}
-          </span>
-        </div>
+        <template v-else>
+          <h3 class="project-name">{{ project.name }}</h3>
+          <p class="project-desc">{{ project.description }}</p>
 
-        <div class="project-footer">
-          <div class="project-stats">
-            <span class="stat">
-              <Star :size="14" />
-              {{ project.stars }}
+          <div class="project-tech">
+            <span v-for="tech in project.techStack" :key="tech" class="tech-tag">
+              {{ tech }}
             </span>
-            <span class="stat">
-              <GitFork :size="14" />
-              {{ project.forks }}
-            </span>
           </div>
-          <div class="project-links">
-            <a :href="project.url" target="_blank" class="link-btn">
-              <Github :size="14" />
-            </a>
-            <a v-if="project.demoUrl" :href="project.demoUrl" target="_blank" class="link-btn">
-              <ExternalLink :size="14" />
-            </a>
+
+          <div class="project-footer">
+            <div class="project-stats">
+              <span class="stat">
+                <Star :size="14" />
+                {{ project.stars }}
+              </span>
+              <span class="stat">
+                <GitFork :size="14" />
+                {{ project.forks }}
+              </span>
+            </div>
+            <div class="project-links">
+              <a :href="project.url" target="_blank" class="link-btn">
+                <Github :size="14" />
+              </a>
+              <a v-if="project.demoUrl" :href="project.demoUrl" target="_blank" class="link-btn">
+                <ExternalLink :size="14" />
+              </a>
+            </div>
           </div>
-        </div>
+        </template>
       </div>
     </div>
   </div>
@@ -158,6 +198,36 @@ const getStatusLabel = (status: string) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.project-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.delete-btn:hover {
+  background: #ff4d4f;
+  color: #fff;
 }
 
 .project-icon {
@@ -246,6 +316,68 @@ const getStatusLabel = (status: string) => {
 .link-btn:hover {
   background: #1a1a1a;
   color: #fff;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-input,
+.edit-textarea,
+.edit-select {
+  padding: 8px 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.edit-input:focus,
+.edit-textarea:focus,
+.edit-select:focus {
+  border-color: #1890ff;
+}
+
+.edit-textarea {
+  resize: vertical;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.edit-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn.save {
+  background: #1890ff;
+  color: #fff;
+}
+
+.edit-btn.save:hover {
+  background: #40a9ff;
+}
+
+.edit-btn.cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.edit-btn.cancel:hover {
+  background: #e0e0e0;
 }
 
 @media (max-width: 768px) {

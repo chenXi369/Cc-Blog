@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Heart, MessageCircle } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { Heart, MessageCircle, Pencil, Trash2 } from 'lucide-vue-next'
+import { api } from '@/api/request'
 
 interface Photo {
   id: number
@@ -12,62 +13,46 @@ interface Photo {
   date: string
 }
 
-const photos = ref<Photo[]>([
-  {
-    id: 1,
-    url: 'https://picsum.photos/400/300?random=1',
-    title: '山间晨雾',
-    description: '清晨的山间，云雾缭绕',
-    likes: 128,
-    comments: 12,
-    date: '2024-01-15',
-  },
-  {
-    id: 2,
-    url: 'https://picsum.photos/400/500?random=2',
-    title: '城市夜景',
-    description: '繁华都市的璀璨灯火',
-    likes: 256,
-    comments: 24,
-    date: '2024-01-10',
-  },
-  {
-    id: 3,
-    url: 'https://picsum.photos/400/300?random=3',
-    title: '海边日落',
-    description: '金色的夕阳洒在海面上',
-    likes: 189,
-    comments: 18,
-    date: '2024-01-05',
-  },
-  {
-    id: 4,
-    url: 'https://picsum.photos/400/400?random=4',
-    title: '樱花盛开',
-    description: '春天的粉色浪漫',
-    likes: 312,
-    comments: 32,
-    date: '2023-12-28',
-  },
-  {
-    id: 5,
-    url: 'https://picsum.photos/400/300?random=5',
-    title: '雪山之巅',
-    description: '壮丽的雪山风光',
-    likes: 167,
-    comments: 15,
-    date: '2023-12-20',
-  },
-  {
-    id: 6,
-    url: 'https://picsum.photos/400/500?random=6',
-    title: '古镇小巷',
-    description: '青石板路的古朴韵味',
-    likes: 234,
-    comments: 21,
-    date: '2023-12-15',
-  },
-])
+const photos = ref<Photo[]>([])
+const editingId = ref<number | null>(null)
+const editForm = ref({
+  title: '',
+  description: '',
+  url: '',
+  date: ''
+})
+
+const fetchPhotos = async () => {
+  photos.value = await api.get<Photo[]>('/photos')
+}
+
+const startEdit = (photo: Photo) => {
+  editingId.value = photo.id
+  editForm.value = {
+    title: photo.title,
+    description: photo.description,
+    url: photo.url,
+    date: photo.date
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
+const saveEdit = async () => {
+  if (editingId.value === null) return
+  await api.put('/photos/' + editingId.value, editForm.value)
+  editingId.value = null
+  await fetchPhotos()
+}
+
+const deletePhoto = async (id: number) => {
+  await api.delete('/photos/' + id)
+  await fetchPhotos()
+}
+
+onMounted(fetchPhotos)
 </script>
 
 <template>
@@ -94,9 +79,35 @@ const photos = ref<Photo[]>([
           </div>
         </div>
         <div class="photo-info">
-          <h3 class="photo-title">{{ photo.title }}</h3>
-          <p class="photo-desc">{{ photo.description }}</p>
-          <span class="photo-date">{{ photo.date }}</span>
+          <div class="photo-info-header">
+            <template v-if="editingId !== photo.id">
+              <h3 class="photo-title">{{ photo.title }}</h3>
+              <div class="photo-actions-inline">
+                <button class="inline-btn" @click="startEdit(photo)">
+                  <Pencil :size="14" />
+                </button>
+                <button class="inline-btn" @click="deletePhoto(photo.id)">
+                  <Trash2 :size="14" />
+                </button>
+              </div>
+            </template>
+          </div>
+          <template v-if="editingId === photo.id">
+            <div class="edit-form">
+              <input v-model="editForm.title" class="edit-input" placeholder="标题" />
+              <input v-model="editForm.description" class="edit-input" placeholder="描述" />
+              <input v-model="editForm.url" class="edit-input" placeholder="图片地址" />
+              <input v-model="editForm.date" class="edit-input" placeholder="日期" />
+              <div class="edit-form-actions">
+                <button class="edit-btn save" @click="saveEdit">保存</button>
+                <button class="edit-btn cancel" @click="cancelEdit">取消</button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <p class="photo-desc">{{ photo.description }}</p>
+            <span class="photo-date">{{ photo.date }}</span>
+          </template>
         </div>
       </div>
     </div>
@@ -199,6 +210,82 @@ const photos = ref<Photo[]>([
 .photo-date {
   font-size: 12px;
   color: #999;
+}
+
+.photo-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.photo-actions-inline {
+  display: flex;
+  gap: 8px;
+}
+
+.inline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.inline-btn:hover {
+  color: #1a1a1a;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-input {
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+}
+
+.edit-input:focus {
+  border-color: #1890ff;
+}
+
+.edit-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.edit-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 13px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.edit-btn:hover {
+  opacity: 0.85;
+}
+
+.edit-btn.save {
+  background: #1890ff;
+  color: #fff;
+}
+
+.edit-btn.cancel {
+  background: #f0f0f0;
+  color: #666;
 }
 
 @media (max-width: 768px) {

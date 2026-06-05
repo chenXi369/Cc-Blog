@@ -1,8 +1,8 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import Layout from '@/layout/index.vue'
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     {
       path: '/',
@@ -19,11 +19,6 @@ const router = createRouter({
           component: () => import('@/views/TechStackView.vue'),
         },
         {
-          path: '/inspiration',
-          name: 'inspiration',
-          component: () => import('@/views/InspirationView.vue'),
-        },
-        {
           path: '/articles',
           name: 'articles',
           component: () => import('@/views/ArticlesView.vue'),
@@ -37,11 +32,6 @@ const router = createRouter({
           path: '/workspace',
           name: 'workspace',
           component: () => import('@/views/WorkspaceView.vue'),
-        },
-        {
-          path: '/navigation',
-          name: 'navigation',
-          component: () => import('@/views/NavigationView.vue'),
         },
         {
           path: '/timeline',
@@ -62,11 +52,6 @@ const router = createRouter({
           path: '/requirements',
           name: 'requirements',
           component: () => import('@/views/RequirementsView.vue'),
-        },
-        {
-          path: '/demo',
-          name: 'demo',
-          component: () => import('@/views/DemoView.vue'),
         },
         {
           path: '/friends',

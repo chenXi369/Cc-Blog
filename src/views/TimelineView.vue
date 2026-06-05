@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { api } from '@/api/request'
+import { Pencil, Trash2 } from 'lucide-vue-next'
 
 interface TimelineItem {
   id: number
@@ -9,50 +11,47 @@ interface TimelineItem {
   type: 'article' | 'project' | 'milestone' | 'learning'
 }
 
-const timelineItems = ref<TimelineItem[]>([
-  {
-    id: 1,
-    date: '2024-01-15',
-    title: '发布 Vue3 性能优化文章',
-    description: '总结了在实际项目中遇到的性能问题及解决方案',
-    type: 'article',
-  },
-  {
-    id: 2,
-    date: '2024-01-10',
-    title: '完成编辑器核心模块',
-    description: '基于 Canvas 的编辑器架构设计完成',
-    type: 'project',
-  },
-  {
-    id: 3,
-    date: '2024-01-01',
-    title: '2024 新年目标',
-    description: '计划学习 WebGL 和 AI 相关知识',
-    type: 'milestone',
-  },
-  {
-    id: 4,
-    date: '2023-12-20',
-    title: '学习 TypeScript 高级类型',
-    description: '深入理解了条件类型和映射类型',
-    type: 'learning',
-  },
-  {
-    id: 5,
-    date: '2023-12-10',
-    title: '开源项目发布',
-    description: '发布了一个 Vue3 组件库',
-    type: 'project',
-  },
-  {
-    id: 6,
-    date: '2023-11-28',
-    title: '参加前端技术大会',
-    description: '分享了 Canvas 编辑器的开发经验',
-    type: 'milestone',
-  },
-])
+const timelineItems = ref<TimelineItem[]>([])
+
+const fetchTimeline = async () => {
+  timelineItems.value = await api.get<TimelineItem[]>('/timeline')
+}
+
+onMounted(fetchTimeline)
+
+const editingId = ref<number | null>(null)
+const editForm = ref({
+  title: '',
+  description: '',
+  date: '',
+  type: 'article' as 'article' | 'project' | 'milestone' | 'learning',
+})
+
+const startEdit = (event: TimelineItem) => {
+  editingId.value = event.id
+  editForm.value = {
+    title: event.title,
+    description: event.description,
+    date: event.date,
+    type: event.type,
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
+const saveEdit = async () => {
+  if (!editingId.value) return
+  await api.put('/timeline/' + editingId.value, editForm.value)
+  await fetchTimeline()
+  editingId.value = null
+}
+
+const deleteEvent = async (id: number) => {
+  await api.delete('/timeline/' + id)
+  await fetchTimeline()
+}
 
 const getTypeColor = (type: string) => {
   const colors: Record<string, string> = {
@@ -94,10 +93,37 @@ const getTypeLabel = (type: string) => {
               >
                 {{ getTypeLabel(item.type) }}
               </span>
-              <span class="timeline-date">{{ item.date }}</span>
+              <div class="timeline-header-right">
+                <span class="timeline-date">{{ item.date }}</span>
+                <button class="icon-btn" @click="startEdit(item)">
+                  <Pencil :size="14" />
+                </button>
+                <button class="icon-btn delete" @click="deleteEvent(item.id)">
+                  <Trash2 :size="14" />
+                </button>
+              </div>
             </div>
-            <h3 class="timeline-title">{{ item.title }}</h3>
-            <p class="timeline-desc">{{ item.description }}</p>
+            <template v-if="editingId === item.id">
+              <div class="edit-form">
+                <input v-model="editForm.title" class="edit-input" placeholder="标题" />
+                <textarea v-model="editForm.description" class="edit-textarea" placeholder="描述" rows="3"></textarea>
+                <input v-model="editForm.date" type="date" class="edit-input" />
+                <select v-model="editForm.type" class="edit-select">
+                  <option value="article">文章</option>
+                  <option value="project">项目</option>
+                  <option value="milestone">里程碑</option>
+                  <option value="learning">学习</option>
+                </select>
+                <div class="edit-actions">
+                  <button class="edit-btn save" @click="saveEdit">保存</button>
+                  <button class="edit-btn cancel" @click="cancelEdit">取消</button>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <h3 class="timeline-title">{{ item.title }}</h3>
+              <p class="timeline-desc">{{ item.description }}</p>
+            </template>
           </div>
         </div>
       </div>
@@ -200,6 +226,96 @@ const getTypeLabel = (type: string) => {
   color: #666;
   margin: 0;
   line-height: 1.5;
+}
+
+.timeline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  color: #333;
+  background: #f0f0f0;
+}
+
+.icon-btn.delete:hover {
+  color: #ff4d4f;
+  background: #fff1f0;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.edit-input,
+.edit-textarea,
+.edit-select {
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.edit-input:focus,
+.edit-textarea:focus,
+.edit-select:focus {
+  border-color: #1890ff;
+}
+
+.edit-textarea {
+  resize: vertical;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.edit-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn.save {
+  background: #1890ff;
+  color: #fff;
+}
+
+.edit-btn.save:hover {
+  background: #40a9ff;
+}
+
+.edit-btn.cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.edit-btn.cancel:hover {
+  background: #e0e0e0;
 }
 
 @media (max-width: 768px) {

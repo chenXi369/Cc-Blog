@@ -7,24 +7,17 @@ import type { LucideProps } from 'lucide-vue-next'
 import {
   Home,
   Cpu,
-  Lightbulb,
   FileText,
   Image,
   Briefcase,
-  Compass,
   Clock,
   Folder,
   CheckSquare,
   ListTodo,
-  Play,
   Link,
-  Github,
-  BookOpen,
-  Database,
-  Video,
-  Twitter,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -36,25 +29,14 @@ type IconComponent = FunctionalComponent<LucideProps>
 const iconMap: Record<string, IconComponent> = {
   Home,
   Cpu,
-  Lightbulb,
   FileText,
   Image,
   Briefcase,
-  Compass,
   Clock,
   Folder,
   CheckSquare,
   ListTodo,
-  Play,
   Link,
-}
-
-const onlineIconMap: Record<string, IconComponent> = {
-  Github,
-  BookOpen,
-  Database,
-  Video,
-  Twitter,
 }
 
 const isActive = computed(() => (path: string) => {
@@ -74,28 +56,46 @@ const getMenuIcon = (iconName: string): IconComponent | undefined => {
   return iconMap[iconName]
 }
 
-const getOnlineIcon = (iconName: string): IconComponent | undefined => {
-  return onlineIconMap[iconName]
+const handleNavClick = (path: string): void => {
+  navigateTo(path)
+  appStore.closeMobileMenu()
 }
 </script>
 
 <template>
-  <aside class="sidebar" :class="{ collapsed: appStore.collapsed }">
+  <Teleport to="body">
+    <div
+      v-if="appStore.mobileMenuOpen"
+      class="sidebar-overlay"
+      @click="appStore.closeMobileMenu"
+    />
+  </Teleport>
+  <aside
+    class="sidebar"
+    :class="{ collapsed: appStore.collapsed, 'mobile-open': appStore.mobileMenuOpen }"
+  >
     <div class="sidebar-header">
       <div class="logo">
         <div class="logo-icon">O</div>
-        <div v-if="!appStore.collapsed" class="logo-text">
-          <div class="logo-title">ObjectX</div>
+        <div class="logo-text">
+          <div class="logo-title">CC</div>
           <div class="logo-desc">不知名程序员</div>
         </div>
       </div>
       <button
-        class="collapse-btn"
+        class="collapse-btn desktop-only"
         :aria-label="appStore.collapsed ? '展开侧边栏' : '收起侧边栏'"
         @click="appStore.toggleCollapsed"
       >
         <ChevronLeft v-if="!appStore.collapsed" :size="16" />
         <ChevronRight v-else :size="16" />
+      </button>
+      <button
+        class="mobile-close-btn"
+        aria-label="关闭菜单"
+        @click="appStore.closeMobileMenu"
+      >
+        <X :size="20" />
       </button>
     </div>
 
@@ -108,8 +108,8 @@ const getOnlineIcon = (iconName: string): IconComponent | undefined => {
           :class="{ active: isActive(item.path) }"
           role="menuitem"
           tabindex="0"
-          @click="navigateTo(item.path)"
-          @keydown.enter="navigateTo(item.path)"
+          @click="handleNavClick(item.path)"
+          @keydown.enter="handleNavClick(item.path)"
         >
           <component
             :is="getMenuIcon(item.icon)"
@@ -118,30 +118,11 @@ const getOnlineIcon = (iconName: string): IconComponent | undefined => {
             class="nav-icon"
             aria-hidden="true"
           />
-          <span v-if="!appStore.collapsed" class="nav-text">{{ item.name }}</span>
-          <span v-if="!appStore.collapsed && item.badge" class="nav-badge">{{ item.badge }}</span>
+          <span class="nav-text">{{ item.name }}</span>
+          <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
         </li>
       </ul>
     </nav>
-
-    <div v-if="!appStore.collapsed" class="sidebar-footer">
-      <div class="footer-label">Online</div>
-      <ul class="online-list" role="list">
-        <li v-for="link in appStore.onlineLinks" :key="link.name" class="online-item">
-          <component
-            :is="getOnlineIcon(link.icon)"
-            v-if="getOnlineIcon(link.icon)"
-            :size="14"
-            class="online-icon"
-            aria-hidden="true"
-          />
-          <span class="online-name">{{ link.name }}</span>
-          <a :href="link.url" target="_blank" rel="noopener noreferrer" class="online-arrow" aria-label="打开 {{ link.name }}">
-            →
-          </a>
-        </li>
-      </ul>
-    </div>
   </aside>
 </template>
 
@@ -162,6 +143,24 @@ const getOnlineIcon = (iconName: string): IconComponent | undefined => {
 
 .sidebar.collapsed {
   width: 64px;
+}
+
+.sidebar.collapsed .logo-text {
+  opacity: 0;
+  max-width: 0;
+  transition: opacity 0.12s ease, max-width 0.2s ease;
+}
+
+.sidebar.collapsed .nav-text {
+  opacity: 0;
+  max-width: 0;
+  transition: opacity 0.12s ease, max-width 0.2s ease;
+}
+
+.sidebar.collapsed .nav-badge {
+  opacity: 0;
+  max-width: 0;
+  transition: opacity 0.12s ease, max-width 0.2s ease;
 }
 
 .sidebar-header {
@@ -190,6 +189,14 @@ const getOnlineIcon = (iconName: string): IconComponent | undefined => {
   font-weight: 600;
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.logo-text {
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  max-width: 200px;
+  transition: opacity 0.2s ease 0.15s, max-width 0.3s ease;
 }
 
 .logo-title {
@@ -271,6 +278,11 @@ const getOnlineIcon = (iconName: string): IconComponent | undefined => {
 
 .nav-text {
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  max-width: 200px;
+  transition: opacity 0.2s ease 0.15s, max-width 0.3s ease;
 }
 
 .nav-badge {
@@ -281,52 +293,70 @@ const getOnlineIcon = (iconName: string): IconComponent | undefined => {
   border-radius: 10px;
   min-width: 18px;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  max-width: 100px;
+  transition: opacity 0.2s ease 0.15s, max-width 0.3s ease;
 }
 
-.sidebar-footer {
-  padding: 16px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.footer-label {
-  font-size: 11px;
-  color: #999;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  letter-spacing: 1px;
-}
-
-.online-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.online-item {
-  display: flex;
+.mobile-close-btn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 4px;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 13px;
+  justify-content: center;
+  cursor: pointer;
   color: #666;
 }
 
-.online-icon {
-  color: #999;
+.sidebar-overlay {
+  display: none;
 }
 
-.online-name {
-  flex: 1;
-}
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    z-index: 200;
+    width: 280px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
 
-.online-arrow {
-  color: #999;
-  text-decoration: none;
-  font-size: 12px;
-  transition: color 0.2s;
-}
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
 
-.online-arrow:hover {
-  color: #1a1a1a;
+  .sidebar.collapsed {
+    width: 280px;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-close-btn {
+    display: flex;
+  }
+
+  .logo-text,
+  .nav-text,
+  .nav-badge {
+    opacity: 1 !important;
+    max-width: 200px !important;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 199;
+  }
 }
 </style>

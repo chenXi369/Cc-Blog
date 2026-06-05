@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { CheckCircle2, Circle, Plus, Trash2, Calendar } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { CheckCircle2, Circle, Plus, Trash2, Calendar, Pencil } from 'lucide-vue-next'
+import { api } from '@/api/request'
 
 interface Todo {
   id: number
@@ -11,16 +12,26 @@ interface Todo {
   category: string
 }
 
-const todos = ref<Todo[]>([
-  { id: 1, title: '完成 Vue3 博客项目', completed: false, priority: 'high', dueDate: '2024-01-20', category: '项目' },
-  { id: 2, title: '学习 WebGL 基础', completed: false, priority: 'medium', dueDate: '2024-01-25', category: '学习' },
-  { id: 3, title: '优化编辑器性能', completed: true, priority: 'high', dueDate: '2024-01-15', category: '项目' },
-  { id: 4, title: '整理技术笔记', completed: false, priority: 'low', dueDate: '2024-01-30', category: '文档' },
-  { id: 5, title: '阅读 AI 相关论文', completed: false, priority: 'medium', dueDate: '2024-02-01', category: '学习' },
-])
-
+const todos = ref<Todo[]>([])
 const newTodoTitle = ref('')
 const filter = ref<'all' | 'active' | 'completed'>('all')
+const editingId = ref<number | null>(null)
+const editForm = ref({
+  title: '',
+  priority: 'medium' as 'high' | 'medium' | 'low',
+  dueDate: '',
+  category: '',
+})
+
+const fetchTodos = async () => {
+  const data = await api.get<any[]>('/todos')
+  todos.value = data.map((item) => ({
+    ...item,
+    dueDate: item.due_date,
+  }))
+}
+
+onMounted(fetchTodos)
 
 const filteredTodos = computed(() => {
   if (filter.value === 'active') return todos.value.filter((t) => !t.completed)
@@ -28,24 +39,63 @@ const filteredTodos = computed(() => {
   return todos.value
 })
 
-const toggleTodo = (todo: Todo) => {
-  todo.completed = !todo.completed
+const toggleTodo = async (todo: Todo) => {
+  const updated = await api.put<any>(`/todos/${todo.id}`, {
+    completed: !todo.completed,
+  })
+  todo.completed = updated.completed
 }
 
-const deleteTodo = (id: number) => {
+const deleteTodo = async (id: number) => {
+  await api.delete(`/todos/${id}`)
   todos.value = todos.value.filter((t) => t.id !== id)
 }
 
-const addTodo = () => {
+const addTodo = async () => {
   if (!newTodoTitle.value.trim()) return
-  todos.value.push({
-    id: Date.now(),
+  const created = await api.post<any>('/todos', {
     title: newTodoTitle.value,
     completed: false,
     priority: 'medium',
     category: '其他',
   })
+  todos.value.unshift({
+    ...created,
+    dueDate: created.due_date,
+  })
   newTodoTitle.value = ''
+}
+
+const startEdit = (todo: Todo) => {
+  editingId.value = todo.id
+  editForm.value = {
+    title: todo.title,
+    priority: todo.priority,
+    dueDate: todo.dueDate || '',
+    category: todo.category,
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
+const saveEdit = async () => {
+  if (editingId.value === null) return
+  const updated = await api.put<any>(`/todos/${editingId.value}`, {
+    title: editForm.value.title,
+    priority: editForm.value.priority,
+    dueDate: editForm.value.dueDate,
+    category: editForm.value.category,
+  })
+  const todo = todos.value.find((t) => t.id === editingId.value)
+  if (todo) {
+    todo.title = updated.title
+    todo.priority = updated.priority
+    todo.dueDate = updated.due_date
+    todo.category = updated.category
+  }
+  editingId.value = null
 }
 
 const getPriorityColor = (priority: string) => {
@@ -110,7 +160,7 @@ const getPriorityColor = (priority: string) => {
             <Circle v-else :size="20" class="check-icon" />
           </button>
 
-          <div class="todo-content">
+          <div v-if="editingId !== todo.id" class="todo-content">
             <span class="todo-title">{{ todo.title }}</span>
             <div class="todo-meta">
               <span
@@ -127,7 +177,43 @@ const getPriorityColor = (priority: string) => {
             </div>
           </div>
 
-          <button class="todo-delete" @click="deleteTodo(todo.id)">
+          <div v-else class="todo-content">
+            <div class="edit-form">
+              <input
+                v-model="editForm.title"
+                type="text"
+                class="edit-input edit-title"
+                placeholder="标题"
+              />
+              <div class="edit-row">
+                <select v-model="editForm.priority" class="edit-select">
+                  <option value="high">高</option>
+                  <option value="medium">中</option>
+                  <option value="low">低</option>
+                </select>
+                <input
+                  v-model="editForm.dueDate"
+                  type="date"
+                  class="edit-input edit-date"
+                />
+                <input
+                  v-model="editForm.category"
+                  type="text"
+                  class="edit-input edit-category"
+                  placeholder="分类"
+                />
+              </div>
+              <div class="edit-actions">
+                <button class="edit-btn save" @click="saveEdit">保存</button>
+                <button class="edit-btn cancel" @click="cancelEdit">取消</button>
+              </div>
+            </div>
+          </div>
+
+          <button v-if="editingId !== todo.id" class="todo-edit" @click="startEdit(todo)">
+            <Pencil :size="16" />
+          </button>
+          <button v-if="editingId !== todo.id" class="todo-delete" @click="deleteTodo(todo.id)">
             <Trash2 :size="16" />
           </button>
         </div>
@@ -305,11 +391,128 @@ const getPriorityColor = (priority: string) => {
   transition: opacity 0.2s;
 }
 
-.todo-item:hover .todo-delete {
+.todo-item:hover .todo-delete,
+.todo-item:hover .todo-edit {
   opacity: 1;
 }
 
 .todo-delete:hover {
   color: #ff4d4f;
+}
+
+.todo-edit {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.todo-edit:hover {
+  color: #1a1a1a;
+}
+
+@media (max-width: 768px) {
+  .todos-container {
+    padding: 16px;
+  }
+
+  .todo-item {
+    padding: 12px;
+  }
+
+  .todo-meta {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .todo-delete,
+  .todo-edit {
+    opacity: 1;
+  }
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-input,
+.edit-select {
+  padding: 6px 10px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.edit-input:focus,
+.edit-select:focus {
+  border-color: #1a1a1a;
+}
+
+.edit-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.edit-row .edit-select {
+  min-width: 80px;
+}
+
+.edit-row .edit-date {
+  min-width: 130px;
+}
+
+.edit-row .edit-category {
+  min-width: 80px;
+  flex: 1;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.edit-btn.save {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.edit-btn.cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.edit-btn:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .edit-row {
+    flex-direction: column;
+  }
+
+  .edit-row .edit-category {
+    width: 100%;
+  }
 }
 </style>

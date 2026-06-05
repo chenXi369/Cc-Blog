@@ -1,5 +1,37 @@
 <script setup lang="ts">
-import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
+import { ref, onMounted, computed } from 'vue'
+import { Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
+import { api } from '@/api/request'
+
+interface Activity {
+  id: number
+  content: string
+  time_text: string
+}
+
+const activities = ref<Activity[]>([])
+const articleCount = ref(0)
+const projectCount = ref(0)
+
+const fetchActivities = async () => {
+  activities.value = await api.get<Activity[]>('/activities?limit=5')
+}
+
+const fetchCounts = async () => {
+  const articles = await api.get<any[]>('/articles')
+  const projects = await api.get<any[]>('/projects')
+  articleCount.value = articles.length
+  projectCount.value = projects.length
+}
+
+onMounted(() => {
+  fetchActivities()
+  fetchCounts()
+})
+
+const skillTags = [
+  'Vue.js', 'React', 'TypeScript', 'Node.js', 'Canvas', 'WebGL', 'AI', '编辑器',
+]
 </script>
 
 <template>
@@ -10,7 +42,7 @@ import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
           <span class="avatar-text">O</span>
         </div>
         <div class="profile-info">
-          <h2 class="profile-name">ObjectX</h2>
+          <h2 class="profile-name">CC</h2>
           <p class="profile-title">不知名程序员</p>
           <p class="profile-desc">前端 & AI & 编辑器</p>
         </div>
@@ -18,11 +50,11 @@ import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
 
       <div class="profile-stats">
         <div class="stat-box">
-          <span class="stat-number">128</span>
+          <span class="stat-number">{{ articleCount }}</span>
           <span class="stat-label">文章</span>
         </div>
         <div class="stat-box">
-          <span class="stat-number">56</span>
+          <span class="stat-number">{{ projectCount }}</span>
           <span class="stat-label">项目</span>
         </div>
         <div class="stat-box">
@@ -34,11 +66,11 @@ import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
       <div class="profile-details">
         <div class="detail-item">
           <MapPin :size="16" />
-          <span>中国 · 北京</span>
+          <span>中国 · 南昌</span>
         </div>
         <div class="detail-item">
           <Mail :size="16" />
-          <span>objectx@example.com</span>
+          <span>CC@example.com</span>
         </div>
         <div class="detail-item">
           <Calendar :size="16" />
@@ -62,25 +94,11 @@ import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
       <div class="content-card">
         <h3 class="card-title">最新动态</h3>
         <div class="activity-list">
-          <div class="activity-item">
+          <div v-for="activity in activities" :key="activity.id" class="activity-item">
             <div class="activity-dot"></div>
             <div class="activity-content">
-              <p class="activity-text">发布了文章《Vue3 性能优化实践》</p>
-              <span class="activity-time">2小时前</span>
-            </div>
-          </div>
-          <div class="activity-item">
-            <div class="activity-dot"></div>
-            <div class="activity-content">
-              <p class="activity-text">完成了项目需求 #11</p>
-              <span class="activity-time">昨天</span>
-            </div>
-          </div>
-          <div class="activity-item">
-            <div class="activity-dot"></div>
-            <div class="activity-content">
-              <p class="activity-text">更新了技术栈页面</p>
-              <span class="activity-time">3天前</span>
+              <p class="activity-text">{{ activity.content }}</p>
+              <span class="activity-time">{{ activity.time_text }}</span>
             </div>
           </div>
         </div>
@@ -89,14 +107,7 @@ import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
       <div class="content-card">
         <h3 class="card-title">技能标签</h3>
         <div class="skill-tags">
-          <span class="skill-tag">Vue.js</span>
-          <span class="skill-tag">React</span>
-          <span class="skill-tag">TypeScript</span>
-          <span class="skill-tag">Node.js</span>
-          <span class="skill-tag">Canvas</span>
-          <span class="skill-tag">WebGL</span>
-          <span class="skill-tag">AI</span>
-          <span class="skill-tag">编辑器</span>
+          <span v-for="tag in skillTags" :key="tag" class="skill-tag">{{ tag }}</span>
         </div>
       </div>
     </div>
@@ -299,8 +310,36 @@ import { User, Mail, MapPin, Calendar, Github, BookOpen } from 'lucide-vue-next'
 }
 
 @media (max-width: 768px) {
+  .profile-card {
+    padding: 20px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .profile-stats {
+    justify-content: space-around;
+    gap: 0;
+  }
+
+  .stat-number {
+    font-size: 20px;
+  }
+
+  .profile-links {
+    flex-wrap: wrap;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .content-card {
+    padding: 20px;
   }
 }
 </style>

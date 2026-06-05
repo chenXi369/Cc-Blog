@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   Search,
   Plus,
@@ -11,7 +11,10 @@ import {
   GitBranch,
   AlertCircle,
   Layers,
+  Pencil,
+  Trash2,
 } from 'lucide-vue-next'
+import { api } from '@/api/request'
 
 interface Requirement {
   id: number
@@ -26,8 +29,30 @@ interface Requirement {
   tags: string[]
 }
 
+interface Stats {
+  total: number
+  completed: number
+  in_progress: number
+  completion_rate: number
+}
+
 const searchQuery = ref('')
 const activeFilter = ref('all')
+const requirements = ref<Requirement[]>([])
+const statsData = ref<Stats>({ total: 0, completed: 0, in_progress: 0, completion_rate: 0 })
+
+const editingId = ref<number | null>(null)
+const editForm = ref({
+  title: '',
+  description: '',
+  category: '',
+  priority: 'medium' as 'high' | 'medium' | 'low',
+  status: 'pending' as 'completed' | 'pending' | 'in-progress',
+  date: '',
+  difficulty: '',
+  techStack: '',
+  tags: '',
+})
 
 const filters = [
   { key: 'all', label: '全部需求' },
@@ -35,32 +60,23 @@ const filters = [
   { key: 'pending', label: '进行中' },
 ]
 
-const requirements = ref<Requirement[]>([
-  {
-    id: 1,
-    title: 'CodeMirror的使用、数据结构配合网站设置中的数据',
-    status: 'completed',
-    priority: 'high',
-    category: '工作',
-    date: '12月31日',
-    techStack: ['React', 'TS', 'skia & canvasKit'],
-    difficulty: '有难点',
-    description: '图形学、节点树、从0-1、属性工具条',
-    tags: ['编辑', '方案', '反思', '开始', '删除'],
-  },
-  {
-    id: 2,
-    title: '编辑器核心架构设计与实现',
-    status: 'completed',
-    priority: 'high',
-    category: '工作',
-    date: '12月31日',
-    techStack: ['React', 'TS', 'webpack', 'pnpm', 'skia & canvasKit'],
-    difficulty: '有难点',
-    description: '图形学、编辑器、skia & canvasKit',
-    tags: ['编辑', '方案', '反思', '开始', '删除'],
-  },
-])
+const fetchRequirements = async () => {
+  const data = await api.get<any[]>('/requirements')
+  requirements.value = data.map((item) => ({
+    ...item,
+    techStack: item.tech_stack ? item.tech_stack.split(',').filter(Boolean) : [],
+    tags: item.tags ? item.tags.split(',').filter(Boolean) : [],
+  }))
+}
+
+const fetchStats = async () => {
+  statsData.value = await api.get<Stats>('/requirements/stats')
+}
+
+onMounted(() => {
+  fetchRequirements()
+  fetchStats()
+})
 
 const filteredRequirements = computed(() => {
   let result = requirements.value
@@ -79,13 +95,10 @@ const filteredRequirements = computed(() => {
 })
 
 const stats = computed(() => ({
-  total: requirements.value.length,
-  completed: requirements.value.filter((r) => r.status === 'completed').length,
-  inProgress: requirements.value.filter((r) => r.status === 'in-progress').length,
-  completionRate: Math.round(
-    (requirements.value.filter((r) => r.status === 'completed').length / requirements.value.length) *
-      100,
-  ),
+  total: statsData.value.total,
+  completed: statsData.value.completed,
+  inProgress: statsData.value.in_progress,
+  completionRate: statsData.value.completion_rate,
 }))
 
 const getPriorityColor = (priority: string) => {
@@ -99,6 +112,42 @@ const getPriorityColor = (priority: string) => {
 
 const getStatusColor = (status: string) => {
   return status === 'completed' ? '#52c41a' : '#bfbfbf'
+}
+
+const startEdit = (req: Requirement) => {
+  editingId.value = req.id
+  editForm.value = {
+    title: req.title,
+    description: req.description,
+    category: req.category,
+    priority: req.priority,
+    status: req.status,
+    date: req.date,
+    difficulty: req.difficulty,
+    techStack: req.techStack.join(','),
+    tags: req.tags.join(','),
+  }
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+}
+
+const saveEdit = async () => {
+  if (!editingId.value) return
+  await api.put('/requirements/' + editingId.value, {
+    ...editForm.value,
+    tech_stack: editForm.value.techStack,
+    tags: editForm.value.tags,
+  })
+  editingId.value = null
+  await fetchRequirements()
+}
+
+const deleteReq = async (id: number) => {
+  if (!confirm('确定要删除该需求吗？')) return
+  await api.delete('/requirements/' + id)
+  await fetchRequirements()
 }
 </script>
 
@@ -185,6 +234,12 @@ const getStatusColor = (status: string) => {
               </div>
               <h3 class="card-title">{{ req.title }}</h3>
               <div class="card-actions">
+                <button class="action-btn" @click="startEdit(req)">
+                  <Pencil :size="16" />
+                </button>
+                <button class="action-btn" @click="deleteReq(req.id)">
+                  <Trash2 :size="16" />
+                </button>
                 <button class="action-btn">
                   <MoreHorizontal :size="16" />
                 </button>
@@ -197,7 +252,34 @@ const getStatusColor = (status: string) => {
               </div>
             </div>
 
-            <div class="card-body">
+            <div v-if="editingId === req.id" class="card-body edit-form">
+              <div class="edit-fields">
+                <input v-model="editForm.title" class="edit-input" placeholder="标题" />
+                <textarea v-model="editForm.description" class="edit-textarea" placeholder="描述" rows="3"></textarea>
+                <input v-model="editForm.category" class="edit-input" placeholder="分类" />
+                <div class="edit-row">
+                  <select v-model="editForm.priority" class="edit-select">
+                    <option value="high">高优</option>
+                    <option value="medium">中优</option>
+                    <option value="low">低优</option>
+                  </select>
+                  <select v-model="editForm.status" class="edit-select">
+                    <option value="completed">已完成</option>
+                    <option value="pending">待处理</option>
+                    <option value="in-progress">进行中</option>
+                  </select>
+                </div>
+                <input v-model="editForm.date" type="date" class="edit-input" />
+                <input v-model="editForm.difficulty" class="edit-input" placeholder="难度" />
+                <input v-model="editForm.techStack" class="edit-input" placeholder="技术栈（逗号分隔）" />
+                <input v-model="editForm.tags" class="edit-input" placeholder="标签（逗号分隔）" />
+              </div>
+              <div class="edit-actions">
+                <button class="edit-save-btn" @click="saveEdit">保存</button>
+                <button class="edit-cancel-btn" @click="cancelEdit">取消</button>
+              </div>
+            </div>
+            <div v-else class="card-body">
               <div class="card-meta">
                 <span class="meta-tag category">{{ req.category }}</span>
                 <span
@@ -603,5 +685,107 @@ const getStatusColor = (status: string) => {
   font-size: 13px;
   color: #666;
   margin: 0;
+}
+
+.edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-input,
+.edit-textarea,
+.edit-select {
+  padding: 8px 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #fff;
+}
+
+.edit-input:focus,
+.edit-textarea:focus,
+.edit-select:focus {
+  border-color: #1a1a1a;
+}
+
+.edit-row {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-row .edit-select {
+  flex: 1;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.edit-save-btn,
+.edit-cancel-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.edit-save-btn {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.edit-cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.edit-save-btn:hover,
+.edit-cancel-btn:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .requirements-layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .requirements-sidebar {
+    width: 100%;
+  }
+
+  .filter-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .stats-section {
+    display: none;
+  }
+
+  .content-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-header {
+    padding: 12px 16px;
+  }
+
+  .card-body {
+    padding: 12px 16px;
+  }
+
+  .card-meta {
+    gap: 6px;
+  }
 }
 </style>
